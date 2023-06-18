@@ -90,6 +90,17 @@ module schism_esmf_util
     module procedure SCHISM_StateUpdate4
   end interface 
 
+  !!!!!zhy
+  public :: zhy_WriteBreakPoint
+  public :: zhy_LogicalToString
+  public :: zhy_convertToString
+  public :: zhy_convertToString2
+
+  !public :: zhy_convertToString4
+  public :: zhy_SCHISM_StateFieldCreateRealize
+  public :: zhy_SCHISM_StateFieldCreateRealize2
+
+  
 contains
 
 ! #undef  ESMF_METHOD
@@ -2408,5 +2419,215 @@ subroutine SCHISM_StateImportWaveTensor(state, isPtr, rc)
   deallocate(farrayPtr1)
   
 end subroutine SCHISM_StateImportWaveTensor
+
+  subroutine zhy_WriteBreakPoint(filename,text)
+    character(len=*), intent(in) :: filename
+    character(len=*), intent(in) :: text
+    logical :: exist
+    inquire(file=filename,exist=exist)
+    if (exist) then
+      open(unit=4,file=filename,status='old',position='append')
+    else
+      open(unit=4,file=filename,status='new')
+    end if
+    write(4,'(A)') "zhy@ " // text
+    close(4)
+  end subroutine zhy_WriteBreakPoint
+
+
+  subroutine zhy_LogicaltoString(logicalValue,str)
+    logical, intent(in) :: logicalValue
+    character(len=5), intent(inout) :: str
+
+    if (logicalValue) then
+       str="True"
+    else
+       str="False"
+    end if
+  end subroutine zhy_LogicaltoString
+
+
+subroutine zhy_convertToString(data, string)
+  implicit none
+  real(ESMF_KIND_R8), intent(in) :: data
+  character(len=20), intent(out) :: string
+
+  ! Convert the data to a string using WRITE statement
+  write(string, '(G20.10)') data
+
+  ! Trim any trailing spaces in the string
+  string = trim(string)
+end subroutine zhy_convertToString
+
+subroutine zhy_convertToString2(data, string)
+  implicit none
+  real, intent(in) :: data
+  character(len=20), intent(out) :: string
+
+  ! Convert the data to a string using WRITE statement
+  write(string, '(G20.10)') data
+
+  ! Trim any trailing spaces in the string
+  string = trim(string)
+end subroutine zhy_convertToString2
+
+subroutine zhy_SCHISM_StateFieldCreateRealize(comp, state, name, field, kwe, rc)
+
+  use schism_glbl, only: nws,np
+  use NUOPC, only: NUOPC_Realize, NUOPC_IsConnected
+
+  implicit none
+
+  type(ESMF_GridComp), intent(inout)               :: comp
+  type(ESMF_State), intent(inout)                  :: state
+  character(len=*), intent(in)                     :: name
+  type(ESMF_Field), intent(out)                    :: field
+  type(ESMF_KeywordEnforcer), intent(in), optional :: kwe
+  integer(ESMF_KIND_I4), intent(out), optional     :: rc
+
+  type(ESMF_Mesh)                    :: mesh
+  type(ESMF_DistGrid)                :: distgrid
+  integer(ESMF_KIND_I4)              :: localrc, rc_
+  type(ESMF_Array)                   :: array
+  character(len=ESMF_MAXSTR)         :: compName, message
+  type(type_InternalStateWrapper)    :: internalState
+  type(type_InternalState), pointer  :: isDataPtr => null()
+  type(ESMF_StateItem_Flag)          :: itemType
+  logical                            :: isPresent
+
+      !!!!!zhy
+    integer, parameter :: numPoints=3
+    integer, allocatable :: zhy_arbSeqIndexList(:)
+    type(ESMF_distgrid) :: zhy_distgrid
+    type(ESMF_LocStream) :: zhy_LocStream
+    integer :: z
+
+    real(ESMF_KIND_R8), dimension(:), pointer :: farrayPtr_streamflow => null()
+
+    type(ESMF_Grid):: zhy_grid
+
+    rc_ = ESMF_SUCCESS
+    localrc = ESMF_SUCCESS
+
+    call ESMF_GridCompGetInternalState(comp, internalState, localrc)
+    _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
+
+    isDataPtr => internalState%wrap
+
+   call zhy_WriteBreakPoint("zhy2.log", 'schism dicharge' // ' ' // 'realize step 1')
+
+    allocate(farrayPtr_streamflow(3))
+    farrayPtr_streamflow = -9.9
+
+    allocate(zhy_arbSeqIndexList(3))
+    do z = 1, 3
+       zhy_arbSeqIndexList(z) = 1 + (z - 1)
+    end do
+
+    zhy_grid = ESMF_GridCreate1PeriDimUfrm(maxIndex=(/1, 3/), &
+                        minCornerCoord=(/0._ESMF_KIND_R8, -50._ESMF_KIND_R8/), &
+                        maxCornerCoord=(/360._ESMF_KIND_R8, 70._ESMF_KIND_R8/), &
+                        staggerLocList=(/ESMF_STAGGERLOC_CENTER/), name="zhy_discharge_grid", rc=rc)
+
+    field = ESMF_FieldCreate(grid=zhy_grid,typekind=ESMF_TYPEKIND_R8, &
+             name="discharge", rc=rc)
+    call NUOPC_Realize(state,field=field, rc=localrc)
+    call zhy_WriteBreakPoint("zhy2.log", 'schism dicharge' // ' ' // 'realize 2')
+
+end subroutine zhy_SCHISM_StateFieldCreateRealize
+
+
+
+subroutine zhy_SCHISM_StateFieldCreateRealize2(comp, state, name, field, kwe, rc)
+
+  use schism_glbl, only: nws,np
+  use NUOPC, only: NUOPC_Realize, NUOPC_IsConnected
+
+  implicit none
+
+  type(ESMF_GridComp), intent(inout)               :: comp
+  type(ESMF_State), intent(inout)                  :: state
+  character(len=*), intent(in)                     :: name
+  type(ESMF_Field), intent(out)                    :: field
+  type(ESMF_KeywordEnforcer), intent(in), optional :: kwe
+  integer(ESMF_KIND_I4), intent(out), optional     :: rc
+
+  type(ESMF_Mesh)                    :: mesh
+  type(ESMF_DistGrid)                :: distgrid
+  integer(ESMF_KIND_I4)              :: localrc, rc_
+  type(ESMF_Array)                   :: array
+  character(len=ESMF_MAXSTR)         :: compName, message
+  type(type_InternalStateWrapper)    :: internalState
+  type(type_InternalState), pointer  :: isDataPtr => null()
+  type(ESMF_StateItem_Flag)          :: itemType
+  logical                            :: isPresent
+
+    !!!!!zhy
+    integer, parameter :: numPoints=3
+    integer, allocatable :: zhy_arbSeqIndexList(:)
+    type(ESMF_distgrid) :: zhy_distgrid
+    type(ESMF_LocStream) :: zhy_LocStream
+    integer :: z
+
+    real(ESMF_KIND_R8),dimension(3) :: lats=(/33.833115,33.670307,33.440487/)
+    real(ESMF_KIND_R8),dimension(3) :: lons=(/-79.04396,-79.15293,-79.24887/)
+    integer(ESMF_KIND_I4),dimension(3):: mask=(/0,0,0/)
+    integer :: numLocations=3
+
+    type(ESMF_ArraySpec) :: arrayspec
+    real(ESMF_KIND_R8), pointer :: coordPtr(:,:)
+    real(ESMF_KIND_R8), pointer :: fptr_test(:)
+
+    real(ESMF_KIND_R8), dimension(:), pointer :: farrayPtr_streamflow => null()
+
+    type(ESMF_Grid):: zhy_grid
+
+    rc_ = ESMF_SUCCESS
+    localrc = ESMF_SUCCESS
+
+    call zhy_WriteBreakPoint("zhy_schism.log", 'schism dicharge' // ' ' // 'realize step 1')
+    zhy_Locstream=ESMF_LocStreamCreate(name="zhy_locstream",localCount=3,&
+                                       indexflag=ESMF_INDEX_DELOCAL,&
+                                       coordSys=ESMF_COORDSYS_SPH_DEG,&
+                                       rc=rc)
+
+    call ESMF_LocStreamAddKey(zhy_Locstream,&
+                              keyName="ESMF:Lat", &
+                              farray=lats,&
+                              datacopyflag=ESMF_DATACOPY_VALUE,&
+                              keyUnits="Degrees", &
+                              keyLongName="Latitude",rc=rc)
+
+    call ESMF_LocStreamAddKey(zhy_Locstream,&
+                              keyName="ESMF:Lon", &
+                              farray=lons,&
+                              datacopyflag=ESMF_DATACOPY_VALUE,&
+                              keyUnits="Degrees", &
+                              keyLongName="Longitude",rc=rc)
+
+    call ESMF_LocStreamAddKey(zhy_Locstream,&
+                              keyName="ESMF:Mask", &
+                              farray=mask,&
+                              datacopyflag=ESMF_DATACOPY_VALUE,&
+                              keyUnits="Degrees", &
+                              keyLongName="ESMF Mask",rc=rc)
+
+    allocate(fptr_test(3))
+
+    field = ESMF_FieldCreate(zhy_Locstream,fptr_test,ESMF_INDEX_DELOCAL,&
+                                           datacopyflag=ESMF_DATACOPY_REFERENCE, &
+                                           name="discharge2", rc=rc)
+    call NUOPC_Realize(state,field=field, rc=localrc)
+    call zhy_WriteBreakPoint("zhy2.log", 'schism dicharge2' // ' ' // 'realize step 2')
+
+
+end subroutine zhy_SCHISM_StateFieldCreateRealize2
+
+
+
+
+
+    
+
 
 end module schism_esmf_util
