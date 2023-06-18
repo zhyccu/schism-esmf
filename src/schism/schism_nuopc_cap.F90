@@ -367,6 +367,11 @@ subroutine InitializeAdvertise(comp, importState, exportState, clock, rc)
   call NUOPC_FieldDictionaryAddIfNeeded("ocean_mask", "1", localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
+  !!!!!zhy, add discharge field, coupling to NWM
+  call NUOPC_FieldDictionaryAddIfNeeded("discharge", "m3 s-1", localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+
+  
   ! for coupling to ATMESH
   call NUOPC_Advertise(importState, "air_pressure_at_sea_level", rc=localrc)
   call NUOPC_Advertise(importState, "inst_zonal_wind_height10m", rc=localrc)
@@ -379,6 +384,10 @@ subroutine InitializeAdvertise(comp, importState, exportState, clock, rc)
 
   ! call NUOPC_Advertise(importState, &
   !   StandardName="surface_temperature", name="air_temperature_at_water_surface", &
+
+
+  !!!!!zhy
+  call NUOPC_Advertise(importState, "discharge", rc=localrc)
 
 
   !> The mesh information is usually not in CF standard and therefore needs
@@ -522,6 +531,11 @@ subroutine InitializeRealize(comp, importState, exportState, clock, rc)
     name="northward_wave_radiation_stress", field=field, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
+  !!!!!zhy, realize discharge field
+  call zhy_SCHISM_StateFieldCreateRealize2(comp, state=importState, &
+    name="discharge", field=field, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+  
 
   !> The list of export states is declared in InitializeAdvertise
   call ESMF_StateGet(exportState, itemCount=itemCount, rc=localrc)
@@ -783,7 +797,40 @@ subroutine ModelAdvance(comp, rc)
   
   !   call SCHISM_FieldPtrUpdate(field, windx2, isPtr=isDataPtr, rc=localrc)
   !   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-  ! endif 
+  ! endif
+
+
+  !!!!!zhy, update discharge every step
+  call ESMF_StateGet(importState, itemname='discharge',itemType=itemType, rc=localrc)
+  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+  if (itemType == ESMF_STATEITEM_FIELD) then
+    call ESMF_StateGet(importState, itemname='discharge', field=field, rc=localrc)
+    _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
+  endif
+
+  call ESMF_FieldGet(field, farrayPtr=fptr_test, rc=localrc)
+
+  allocate(nwm_discharge(3))
+  nwm_discharge(1)=-fptr_test(1)
+  nwm_discharge(2)=-fptr_test(2)
+  nwm_discharge(3)=-fptr_test(3)
+  call zhy_convertToString(fptr_test(1),str1)
+  call zhy_WriteBreakPoint("zhy_schism.log"," val1 "// str1 )
+  call zhy_convertToString(fptr_test(2),str2)
+  call zhy_WriteBreakPoint("zhy_schism.log"," val2 "// str2 )
+  call zhy_convertToString(fptr_test(3),str3)
+  call zhy_WriteBreakPoint("zhy_schism.log"," val3 "// str3 )
+
+  call zhy_convertToString(nwm_discharge(1),str1)
+  call zhy_WriteBreakPoint("zhy_schism.log"," nwm discharge val1 "// str1 )
+  call zhy_convertToString(nwm_discharge(2),str2)
+  call zhy_WriteBreakPoint("zhy_schism.log"," nwm discharge val2 "// str2 )
+  call zhy_convertToString(nwm_discharge(3),str3)
+  call zhy_WriteBreakPoint("zhy_schism.log"," nwm discharge val3 "// str3 )
+
+
+
+  
 
   call schism_step(it)
   it = it + 1
