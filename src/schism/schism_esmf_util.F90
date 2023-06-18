@@ -170,7 +170,7 @@ subroutine SCHISM_InitializePtrMap(comp, kwe, rc)
   call ESMF_GridCompGetInternalState(comp, isPtr, localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-  allocate(isPtr%wrap%ptrMap(14))
+  allocate(isPtr%wrap%ptrMap(15))
 
   isPtr%wrap%ptrMap(1)%name = 'depth-averaged_x-velocity'
   !isPtr%wrap%ptrMap(1)%farrayPtr1 => dav(1,:)
@@ -218,6 +218,13 @@ subroutine SCHISM_InitializePtrMap(comp, kwe, rc)
 
   isPtr%wrap%ptrMap(14)%name = 'ocean_mask'
   isPtr%wrap%ptrMap(14)%iarrayPtr1 => idry_e
+
+  !!!!!zhy, add discharge
+  isPtr%wrap%ptrMap(15)%name = 'discharge'
+  isPtr%wrap%ptrMap(15)%farrayPtr1 => nwm_discharge
+
+
+
   
 end subroutine SCHISM_InitializePtrMap
 
@@ -2616,9 +2623,9 @@ subroutine zhy_SCHISM_StateFieldCreateRealize2(comp, state, name, field, kwe, rc
 
     field = ESMF_FieldCreate(zhy_Locstream,fptr_test,ESMF_INDEX_DELOCAL,&
                                            datacopyflag=ESMF_DATACOPY_REFERENCE, &
-                                           name="discharge2", rc=rc)
+                                           name="discharge", rc=rc)
     call NUOPC_Realize(state,field=field, rc=localrc)
-    call zhy_WriteBreakPoint("zhy2.log", 'schism dicharge2' // ' ' // 'realize step 2')
+    call zhy_WriteBreakPoint("zhy_schism.log", 'schism dicharge' // ' ' // 'realize step 2')
 
 
 end subroutine zhy_SCHISM_StateFieldCreateRealize2
