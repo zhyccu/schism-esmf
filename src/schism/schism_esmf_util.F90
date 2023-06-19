@@ -151,7 +151,7 @@ contains
 subroutine SCHISM_InitializePtrMap(comp, kwe, rc)
 
   use schism_glbl, only: dav, pr2, tr_nd, eta2, windx2, windy2, npa
-  use schism_glbl, only: uu2, vv2, srad, shum2, airt2, idry_e
+  use schism_glbl, only: uu2, vv2, srad, shum2, airt2, idry_e,nwm_discharge
 
   type(ESMF_GridComp), intent(inout)                  :: comp
   type(ESMF_KeywordEnforcer), intent(in), optional    :: kwe

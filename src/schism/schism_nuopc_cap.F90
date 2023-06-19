@@ -699,7 +699,7 @@ end subroutine
 subroutine ModelAdvance(comp, rc)
 
   use schism_glbl,      only: wtiminc, windx2, windy2, pr2, eta2, tr_nd, dav, idry_e
-  use schism_glbl,      only: uu2, vv2
+  use schism_glbl,      only: uu2, vv2, nwm_discharge!!!!!zhy, add nwm_discharge
   !use schism_esmf_util, only: SCHISM_StateGetField, SCHISM_FieldPtrUpdate
   use schism_esmf_util, only: SCHISM_StateImportWaveTensor, SCHISM_StateUpdate
 
@@ -727,6 +727,24 @@ subroutine ModelAdvance(comp, rc)
   integer(ESMF_KIND_I4)                   :: itemCount, i
   type(ESMF_FieldStatus_Flag)             :: fieldStatus 
 
+  !!!!!zhy
+  real(ESMF_KIND_R8), pointer :: fptr_test(:)
+!  real, pointer :: fptr_test(:,:)
+  character(len=20)          :: str1,str2,str3
+
+    integer, allocatable :: zhy_arbSeqIndexList(:)
+    type(ESMF_distgrid) :: zhy_distgrid
+    type(ESMF_LocStream) :: zhy_LocStream
+    real(ESMF_KIND_R8),dimension(3) :: lats=(/33.833115,33.670307,33.440487/)
+    real(ESMF_KIND_R8),dimension(3) :: lons=(/-79.04396,-79.15293,-79.24887/)
+    integer(ESMF_KIND_I4),dimension(3):: mask=(/0,0,0/)
+    integer :: numLocations=3
+
+    type(ESMF_ArraySpec) :: arrayspec
+    real(ESMF_KIND_R8), pointer :: coordPtr(:,:)
+
+
+  
   rc = ESMF_SUCCESS
 
   !call ESMF_TraceRegionEnter("schism:ModelAdvance", rc=localrc)
