@@ -853,6 +853,9 @@ subroutine ModelAdvance(comp, rc)
   call schism_step(it)
   it = it + 1
 
+  !!!!!zhy, deallocate, will get error without this line
+  deallocate(nwm_discharge)
+  
   call SCHISM_StateUpdate(exportState, 'elevation_at_sea_level', eta2, &
     isPtr=isDataPtr, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
