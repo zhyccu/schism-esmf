@@ -153,8 +153,6 @@ subroutine SCHISM_InitializePtrMap(comp, kwe, rc)
   use schism_glbl, only: dav, pr2, tr_nd, eta2, windx2, windy2, npa
   use schism_glbl, only: uu2, vv2, srad, shum2, airt2, idry_e,nwm_discharge
 
-  use schism_glbl, only: dp
-
   type(ESMF_GridComp), intent(inout)                  :: comp
   type(ESMF_KeywordEnforcer), intent(in), optional    :: kwe
   integer(ESMF_KIND_I4), intent(out), optional        :: rc
@@ -172,10 +170,10 @@ subroutine SCHISM_InitializePtrMap(comp, kwe, rc)
   call ESMF_GridCompGetInternalState(comp, isPtr, localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-  allocate(isPtr%wrap%ptrMap(16))
+  allocate(isPtr%wrap%ptrMap(15))
 
   isPtr%wrap%ptrMap(1)%name = 'depth-averaged_x-velocity'
-  isPtr%wrap%ptrMap(1)%farrayPtr1 => dav(1,:)
+  !isPtr%wrap%ptrMap(1)%farrayPtr1 => dav(1,:)
 
   !> the following is not valid
   !do ip=1, npa
@@ -225,8 +223,6 @@ subroutine SCHISM_InitializePtrMap(comp, kwe, rc)
   isPtr%wrap%ptrMap(15)%name = 'discharge'
   isPtr%wrap%ptrMap(15)%farrayPtr1 => nwm_discharge
 
-  isPtr%wrap%ptrMap(16)%name = 'bathymetry'
-  isPtr%wrap%ptrMap(16)%farrayPtr1 = dp
 
 
   
@@ -582,17 +578,11 @@ subroutine SCHISM_StateUpdate1(state, name, farray, kwe, isPtr, rc)
   call ESMF_FieldGet(field, farrayPtr=farrayPtr1, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
 
-  !if (trim(name)=='depth-averaged_x-velocity') then
-  !  print*,'SCHISM esmf size test1',size(farrayPtr1)
-  !endif
-
   isPresent = ESMF_RouteHandleIsCreated(isPtr%haloHandle, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
 
   call ESMF_StateGet(state, stateintent=intent, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
-
-  !print*,'SCHISM update halo: ',trim(name),isPresent
 
   if (isPresent) then 
     call ESMF_FieldHalo(field, routehandle=isPtr%haloHandle, rc=localrc)
@@ -626,11 +616,6 @@ subroutine SCHISM_StateUpdate1(state, name, farray, kwe, isPtr, rc)
     call ESMF_FieldHalo(field, routehandle=isPtr%haloHandle, rc=localrc)
     _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
   endif 
-! SDL add
-  !if (trim(name)=='depth-averaged_x-velocity') then
-  !  call ESMF_FieldGet(field, farrayPtr=farrayPtr1, rc=localrc)
-  !  print*,'SCHISM esmf size test2',size(farrayPtr1)
-  !endif
 
 end subroutine SCHISM_StateUpdate1
 
@@ -1577,10 +1562,6 @@ subroutine SCHISM_MeshCreateNode(comp, kwe, rc)
   allocate(nv(sum(i34(1:nea))), stat=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_)
 
-! SDL test
-  !print*,'SCHISM ics: ',ics
-
-
   ! set ESMF coordSys type
   if (ics==2) then
     coordsys=ESMF_COORDSYS_SPH_DEG
@@ -1590,8 +1571,6 @@ subroutine SCHISM_MeshCreateNode(comp, kwe, rc)
     call ESMF_LogWrite(trim(message), ESMF_LOGMSG_WARNING)
     coordsys=ESMF_COORDSYS_CART
   endif
-
-  !print*,'SCHISM-lon',rad2deg*xlon
 
   do ip=1, npa
     nodeids(ip)=iplg(ip) !global node #
@@ -1741,9 +1720,6 @@ subroutine SCHISM_MeshCreateNode(comp, kwe, rc)
 
   !> This is a three-part mesh generation, with later addition of node 
   !> and element information
-  !print*,'SCHISM coordsys ESMF_COORDSYS_SPH_DEG', ESMF_COORDSYS_SPH_DEG
-  !print*,'SCHISM coordsys ESMF_COORDSYS_CART', ESMF_COORDSYS_CART 
-
   mesh2d = ESMF_MeshCreate(parametricDim=2, spatialdim=2, coordSys=coordsys, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc_) 
 
@@ -2640,6 +2616,7 @@ subroutine zhy_SCHISM_StateFieldCreateRealize2(comp, state, name, field, kwe, rc
                               keyName="ESMF:Mask", &
                               farray=mask,&
                               datacopyflag=ESMF_DATACOPY_VALUE,&
+                              keyUnits="Degrees", &
                               keyLongName="ESMF Mask",rc=rc)
 
     allocate(fptr_test(3))
@@ -2648,7 +2625,7 @@ subroutine zhy_SCHISM_StateFieldCreateRealize2(comp, state, name, field, kwe, rc
                                            datacopyflag=ESMF_DATACOPY_REFERENCE, &
                                            name="discharge", rc=rc)
     call NUOPC_Realize(state,field=field, rc=localrc)
-    !call zhy_WriteBreakPoint("zhy_schism.log", 'schism dicharge' // ' ' // 'realize step 2')
+    call zhy_WriteBreakPoint("zhy_schism.log", 'schism dicharge' // ' ' // 'realize step 2')
 
 
 end subroutine zhy_SCHISM_StateFieldCreateRealize2

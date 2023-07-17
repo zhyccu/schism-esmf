@@ -370,10 +370,6 @@ subroutine InitializeAdvertise(comp, importState, exportState, clock, rc)
   !!!!!zhy, add discharge field, coupling to NWM
   call NUOPC_FieldDictionaryAddIfNeeded("discharge", "m3 s-1", localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-  call NUOPC_FieldDictionaryAddIfNeeded("elevation_at_sea_level", "m", localrc)
-  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-  call NUOPC_FieldDictionaryAddIfNeeded("bathymetry", "m", localrc)
-  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
   
   ! for coupling to ATMESH
@@ -425,15 +421,6 @@ subroutine InitializeAdvertise(comp, importState, exportState, clock, rc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
   call NUOPC_FieldAdvertise(exportState, "depth-averaged_y-velocity", "m s-1", localrc)
-  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-  !call NUOPC_FieldAdvertise(exportState, "elevation_at_sea_level", "m", localrc)
-  call NUOPC_Advertise(exportState, StandardName="elevation_at_sea_level", &
-       name="elevation_at_sea_level",rc=localrc)
-!      SharePolicyField='share', SharePolicyGeomObject='share', &
-!      TransferOfferGeomObject='will provide', rc=localrc)
-  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-  call NUOPC_Advertise(exportState, StandardName="bathymetry", &
-       name='bathymetry',rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
   ! required for coupling through CMEPS mediator
@@ -488,8 +475,6 @@ subroutine InitializeRealize(comp, importState, exportState, clock, rc)
   real(ESMF_KIND_R8), target, allocatable :: eastward_wave_radiation_stress(:)
   real(ESMF_KIND_R8), target, allocatable :: eastward_northward_wave_radiation_stress(:)
   real(ESMF_KIND_R8), target, allocatable :: northward_wave_radiation_stress(:)
-! SDL add
-  !real(ESMF_KIND_R8), pointer :: nodeCoords(:) => null()
 
   rc = ESMF_SUCCESS
   localrc= ESMF_SUCCESS
@@ -514,14 +499,6 @@ subroutine InitializeRealize(comp, importState, exportState, clock, rc)
   call ESMF_MeshGet(mesh2d, nodalDistgrid=nodalDistgrid, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-! SDL test
-  !call ESMF_MeshGet(mesh2d, nodeCoords=nodeCoords, rc=localrc)
-  !_SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-  !print*, 'SCHISM MESHGRID test: ', nodeCoords
-  !call ESMF_MeshGet(mesh2d, coordSys=coordSys, rc=localrc)
-  !print*,'SCHISM coordSys: ', coordSys
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   call SCHISM_StateFieldCreateRealize(comp, state=importState, &
     name="inst_zonal_wind_height10m", field=field, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
@@ -579,25 +556,6 @@ subroutine InitializeRealize(comp, importState, exportState, clock, rc)
       call SCHISM_FieldRealize(exportState, itemNameList(i), &
         mesh=mesh2d, typeKind=ESMF_TYPEKIND_I4, rc=localrc)
       _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-! SDL add
-    else if (trim(itemNameList(i)) == 'depth-averaged_x-velocity') then
-      call SCHISM_StateFieldCreateRealize(comp, state=exportState, &
-      name='depth-averaged_x-velocity', field=field, rc=localrc)
-      _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-    else if (trim(itemNameList(i)) == 'depth-averaged_y-velocity') then
-      call SCHISM_StateFieldCreateRealize(comp, state=exportState, &
-      name='depth-averaged_y-velocity', field=field, rc=localrc)
-      _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-    else if (trim(itemNameList(i)) == 'elevation_at_sea_level') then
-      call SCHISM_StateFieldCreateRealize(comp, state=exportState, &
-      name='elevation_at_sea_level', field=field, rc=localrc)
-      _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-    else if (trim(itemNameList(i)) == 'bathymetry') then
-      call SCHISM_StateFieldCreateRealize(comp, state=exportState, &
-      name='bathymetry', field=field, rc=localrc)
-      _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     else
       call SCHISM_FieldRealize(exportState, itemNameList(i), &
         mesh=mesh2d, rc=localrc)
@@ -742,11 +700,6 @@ subroutine ModelAdvance(comp, rc)
 
   use schism_glbl,      only: wtiminc, windx2, windy2, pr2, eta2, tr_nd, dav, idry_e
   use schism_glbl,      only: uu2, vv2, nwm_discharge!!!!!zhy, add nwm_discharge
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  ! SDL add
-  ! load bathymetry from schism model
-  use schism_glbl,      only: dp
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   !use schism_esmf_util, only: SCHISM_StateGetField, SCHISM_FieldPtrUpdate
   use schism_esmf_util, only: SCHISM_StateImportWaveTensor, SCHISM_StateUpdate
 
@@ -777,21 +730,18 @@ subroutine ModelAdvance(comp, rc)
   !!!!!zhy
   real(ESMF_KIND_R8), pointer :: fptr_test(:)
 !  real, pointer :: fptr_test(:,:)
-!  character(len=20)          :: str1,str2,str3
-  integer :: ii
-  integer(ESMF_KIND_I4) :: year
-  integer :: month
-  integer :: day
-  integer(ESMF_KIND_I4) :: hour, minute, second
-  integer :: localPet, esmf_comm
-  type(ESMF_VM) :: vm
-  logical :: exist
-  real(ESMF_KIND_R8), pointer :: fptr_test_wl(:)
-  real(ESMF_KIND_R8), pointer :: fptr_test_dau(:)
+  character(len=20)          :: str1,str2,str3
 
-  real(ESMF_KIND_R8), allocatable :: tmp_wl(:)
+    integer, allocatable :: zhy_arbSeqIndexList(:)
+    type(ESMF_distgrid) :: zhy_distgrid
+    type(ESMF_LocStream) :: zhy_LocStream
+    real(ESMF_KIND_R8),dimension(3) :: lats=(/33.833115,33.670307,33.440487/)
+    real(ESMF_KIND_R8),dimension(3) :: lons=(/-79.04396,-79.15293,-79.24887/)
+    integer(ESMF_KIND_I4),dimension(3):: mask=(/0,0,0/)
+    integer :: numLocations=3
 
-
+    type(ESMF_ArraySpec) :: arrayspec
+    real(ESMF_KIND_R8), pointer :: coordPtr(:,:)
 
 
   
@@ -807,11 +757,6 @@ subroutine ModelAdvance(comp, rc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
 
   isDataPtr => internalState%wrap
-
-  !print*,'SCHISM isPtr%numOwnedNodes',isDataPtr%numOwnedNodes
-  !print*,'SCHISM size isPtr%ownedNodeIds',size(isDataPtr%ownedNodeIds)
-  !print*,'SCHISM isPtr%ownedNodeIds',isDataPtr%ownedNodeIds
-
 
   if(.not.associated(isDataPtr)) localrc = ESMF_RC_PTR_NULL
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
@@ -884,34 +829,25 @@ subroutine ModelAdvance(comp, rc)
   call ESMF_FieldGet(field, farrayPtr=fptr_test, rc=localrc)
 
   allocate(nwm_discharge(3))
-  do ii=1,3
-    nwm_discharge(ii)=-fptr_test(ii)
-  enddo
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-! SDL add
-! save NWM discharge data
-  call ESMF_GridCompGet(comp, vm=vm, rc=localrc)
-  call ESMF_VMGet(vm, localPet=localPet, mpiCommunicator=esmf_comm, rc=localrc)
-  call ESMF_TimeGet(currTime, yy=year, mm=month, dd=day, h=hour, m=minute, s=second)
-  !inquire(file='NWM-TO-SCHISM-Discharge.txt',exist=exist)
-  if ((localPet==40) .AND. (minute==0) .AND. (second==0)) then
-    inquire(file='NWM-TO-SCHISM-Discharge.txt',exist=exist)
-    if (exist) then
-      open(unit=111,file='NWM-TO-SCHISM-Discharge.txt',status='old',position='append')
-    else
-      open(unit=111,file='NWM-TO-SCHISM-Discharge.txt',status='new')
-    endif
-    write(111, '(I4,I2.2,I2.2,I2.2,I2.2,I2.2,F20.5,F20.5,F20.5)') year, month, day, hour, minute, second, fptr_test(1), fptr_test(2), fptr_test(3)
-    close(111)
-  endif
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-! SDL test bathymetry
-  !if ((localPet==40)) then
-  !  print*,'SDL test bathymetry',dp(1:10)
-  !  print*,'SDL test dp size',size(dp)
-  !  print*,'SDL test eta2 size',size(eta2)
-  !endif
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  nwm_discharge(1)=-fptr_test(1)
+  nwm_discharge(2)=-fptr_test(2)
+  nwm_discharge(3)=-fptr_test(3)
+  call zhy_convertToString(fptr_test(1),str1)
+  call zhy_WriteBreakPoint("zhy_schism.log"," val1 "// str1 )
+  call zhy_convertToString(fptr_test(2),str2)
+  call zhy_WriteBreakPoint("zhy_schism.log"," val2 "// str2 )
+  call zhy_convertToString(fptr_test(3),str3)
+  call zhy_WriteBreakPoint("zhy_schism.log"," val3 "// str3 )
+
+  call zhy_convertToString(nwm_discharge(1),str1)
+  call zhy_WriteBreakPoint("zhy_schism.log"," nwm discharge val1 "// str1 )
+  call zhy_convertToString(nwm_discharge(2),str2)
+  call zhy_WriteBreakPoint("zhy_schism.log"," nwm discharge val2 "// str2 )
+  call zhy_convertToString(nwm_discharge(3),str3)
+  call zhy_WriteBreakPoint("zhy_schism.log"," nwm discharge val3 "// str3 )
+
+
+
   
 
   call schism_step(it)
@@ -920,41 +856,13 @@ subroutine ModelAdvance(comp, rc)
   !!!!!zhy, deallocate, will get error without this line
   deallocate(nwm_discharge)
   
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-! SDL add
-  allocate(tmp_wl(size(eta2)))
-  tmp_wl=eta2+dp
-
-  !call SCHISM_StateUpdate(exportState, 'elevation_at_sea_level', eta2, &
-  call SCHISM_StateUpdate(exportState, 'elevation_at_sea_level', tmp_wl, &
+  call SCHISM_StateUpdate(exportState, 'elevation_at_sea_level', eta2, &
     isPtr=isDataPtr, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-  deallocate(tmp_wl)
-
-  call SCHISM_StateUpdate(exportState, 'bathymetry', dp, & 
-    isPtr=isDataPtr, rc=localrc)
-  _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-! SDL add
-  call ESMF_StateGet(exportState,itemname='elevation_at_sea_level',field=field,rc=localrc)
-  call ESMF_FieldGet(field, farrayPtr=fptr_test_wl, rc=localrc)
-  !print*,'SCHISM size of fptr_test_wl',size(fptr_test_wl)
-  !print*,'SCHISM size of eta2',size(eta2)
-  !print*,'SCHISM wl maxval: ',maxval(fptr_test_wl)
-  !print*,'SCHISM wl minval: ',minval(fptr_test_wl)
-
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
   call SCHISM_StateUpdate(exportState, 'depth-averaged_x-velocity', dav(1,:), &
     isPtr=isDataPtr, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  call ESMF_StateGet(exportState,itemname='depth-averaged_x-velocity',field=field,rc=localrc)
-  call ESMF_FieldGet(field, farrayPtr=fptr_test_dau, rc=localrc)
-  !print*,'SCHISM size of fptr_test_dau',size(fptr_test_dau)
-  !print*,'SCHISM size of dau',size(dav(1,:))
-
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
   call SCHISM_StateUpdate(exportState, 'depth-averaged_y-velocity', dav(2,:), &
     isPtr=isDataPtr, rc=localrc)
@@ -979,34 +887,8 @@ subroutine ModelAdvance(comp, rc)
   call SCHISM_StateUpdate(exportState, 'ocean_mask', idry_e, &
     isPtr=isDataPtr, rc=localrc)
   _SCHISM_LOG_AND_FINALIZE_ON_ERROR_(rc)
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-! SDL add, calculate SCHISM discharge based on SCHISM depth-averaged velocity
-! and water depth
-
-! SDL test
-  !print*, 'SDL test dim of dav x: ',size(dav(1,:))
-  !print*, 'SDL test dim of dav y: ',size(dav(2,:))
-  !print*, 'SDL test dav x maxval: ', maxval(dav(1,:))
-  !print*, 'SDL test dav x minval: ', minval(dav(1,:))
-  !print*,'SDL test eta2 maxval:',maxval(eta2)
-  !print*,'SDL test eta2 minval:',minval(eta2)
-
-
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 end subroutine
-
-
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-! SDL add
-!subroutine SCHISM_Calculate_Discharge(startlon, endlon, startlat, endlat)
-!  implicit none
-!
-!  real(ESMF_KIND_R8) :: startlon, endlon, startlat, endlat 
-!
-!end subroutine SCHISM_Calculate_Discharge
-
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 #undef ESMF_METHOD
 #define ESMF_METHOD "SCHISM_RemoveUnconnectedFields"
